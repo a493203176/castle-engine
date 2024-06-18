@@ -364,11 +364,20 @@ begin
   { Some times this names can be like "walk/0001.png" }
   AnimationName := DeleteFileExt(FrameFileName);
 
-  {$ifdef FPC}
-  RemoveTrailingChars(AnimationName, ['0'..'9']);
-  {$else}
-  AnimationName := AnimationName.TrimRight(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']);
-  {$endif}
+  if  AnsiContainsText(AnimationName,'obj') or
+  AnsiContainsText(AnimationName,'tiles') or
+  AnsiContainsText(AnimationName,'smtiles') then
+  begin
+
+  end else begin
+    {$ifdef FPC}
+    RemoveTrailingChars(AnimationName, ['0'..'9']);
+    {$else}
+    AnimationName := AnimationName.TrimRight(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']);
+    {$endif}
+  end;
+
+
 
   if (Length(AnimationName) > 1) and ((AnimationName[Length(AnimationName)] = '_')
     or (AnimationName[Length(AnimationName)] = '-')
