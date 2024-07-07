@@ -707,7 +707,7 @@ uses
   CastleUtils, CastleComponentSerialize, CastleFileFilters, CastleGLUtils, CastleImages,
   CastleLog, CastleProjection, CastleStringUtils, CastleTimeUtils,
   CastleUriUtils, X3DLoad, CastleFilesUtils, CastleInternalPhysicsVisualization,
-  CastleInternalUrlUtils,
+  CastleInternalUrlUtils, CastleInternalFileMonitor,
   { CGE unit to keep in uses clause even if they are not explicitly used by FrameDesign,
     to register the core CGE components for (de)serialization. }
   Castle2DSceneManager, CastleNotifications, CastleThirdPersonNavigation, CastleSoundEngine,
@@ -3459,6 +3459,10 @@ begin
       else
         Result := TCastleImageControl;
     end else
+    // check LoadTiledMap_FileFilters before LoadScene_FileFilters, since *.tmx matches both
+    if TFileFilterList.Matches(LoadTiledMap_FileFilters, SelectedUrl) then
+      Result := TCastleTiledMap
+    else
     if TFileFilterList.Matches(LoadScene_FileFilters, SelectedUrl) then
       Result := TCastleScene
     else
@@ -3513,6 +3517,13 @@ var
     Result.Url := Url;
   end;
 
+  function AddTiledMap(const Url: String): TCastleTiledMap;
+  begin
+    Result := AddComponent(ParentComponent, TCastleTiledMap, nil,
+      'TiledMap' + BaseNameFromUrl) as TCastleTiledMap;
+    Result.Url := Url;
+  end;
+
   function AddSound(const Url: String): TCastleTransform;
   var
     SoundSource: TCastleSoundSource;
@@ -3555,6 +3566,9 @@ begin
     else
       Result := AddImageControl(AddUrl);
   end else
+  if TFileFilterList.Matches(LoadTiledMap_FileFilters, AddUrl) then
+    Result := AddTiledMap(AddUrl)
+  else
   if TFileFilterList.Matches(LoadScene_FileFilters, AddUrl) then
     Result := AddScene(AddUrl)
   else
@@ -6447,6 +6461,13 @@ initialization
   { Enable using our property edits e.g. for TCastleScene.URL }
   CastlePropEdits.Register;
   CastleEditorPropEdits.Register;
-  { Inside CGE editor, CastleApplicationMode is never appRunning. }
+
+  { Inside CGE editor,
+    - CastleApplicationMode is never appRunning,
+    - so CastleDesignMode is always true. }
   InternalCastleApplicationMode := appDesign;
+
+  { Inside CGE editor, file monitor is always enabled. }
+  FileMonitor.MakePossiblyEnabled;
+  FileMonitor.Enabled := true;
 end.

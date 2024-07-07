@@ -51,6 +51,14 @@ var
 begin
   Img := TSingleImage.CreateFromStream(Stream);
   try
+    // WritelnLog('Loaded image from Vampyre Imaging, format %s, size %dx%d', [
+    //   GetFormatName(Img.Format),
+    //   Img.Width,
+    //   Img.Height
+    // ]);
+    // happens e.g. when reading TIFF, but TIFF dynamic library not available
+    if Img.Format = ifUnknown then
+      raise EImageLoadError.Create('Reading image using Vampyre Imaging failed, unknown or unsupported format');
     case Img.Format of
       ifGray8: Result := TGrayscaleImage.Create(Img.Width, Img.Height);
       ifA8Gray8: Result := TGrayscaleAlphaImage.Create(Img.Width, Img.Height);
@@ -68,13 +76,42 @@ begin
       ifDXT1: Result := TGPUCompressedImage.Create(Img.Width, Img.Height, 1, tcDxt1_RGBA);
       ifDXT3: Result := TGPUCompressedImage.Create(Img.Width, Img.Height, 1, tcDxt3);
       ifDXT5: Result := TGPUCompressedImage.Create(Img.Width, Img.Height, 1, tcDxt5);
-      // obtained e.g. when reading RGBE/HDR images
+
+      // example: RGBE/HDR images
       ifR32G32B32F:
         begin
           Result := TRGBFloatImage.Create(Img.Width, Img.Height);
           SwapChannels(Img.ImageDataPointer^, ChannelRed, ChannelBlue);
         end;
       ifB32G32R32F: Result := TRGBFloatImage.Create(Img.Width, Img.Height);
+
+      { Example of ifR16G16B16:
+        16-bit PNGs from https://www.motionforgepictures.com/height-maps/ .
+        Convert these to TRGBFloatImage to keep precision beyond 8 bits,
+        useful for terrains. }
+      ifR16G16B16, ifB16G16R16:
+        begin
+          WritelnLog('Converting Vampyre Imaging format %s -> %s', [
+            GetFormatName(Img.Format),
+            GetFormatName(ifB32G32R32F)
+          ]);
+          Img.Format := ifB32G32R32F; // calls ConvertImage and actually changes content
+          Result := TRGBFloatImage.Create(Img.Width, Img.Height);
+        end;
+
+      { A few grayscale formats that have precision beyond 8-bit,
+        very useful for terrains. }
+      ifR32F: Result := TGrayscaleFloatImage.Create(Img.Width, Img.Height);
+      ifR16F, ifGray16, ifGray32:
+        begin
+          WritelnLog('Converting Vampyre Imaging format %s -> %s', [
+            GetFormatName(Img.Format),
+            GetFormatName(ifR32F)
+          ]);
+          Img.Format := ifR32F; // calls ConvertImage and actually changes content
+          Result := TGrayscaleFloatImage.Create(Img.Width, Img.Height);
+        end;
+
       else
         begin
           WritelnLog('Converting Vampyre Imaging format %s -> %s', [

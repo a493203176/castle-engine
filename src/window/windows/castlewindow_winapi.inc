@@ -60,6 +60,7 @@ Windows, CommDlg,
 
 {$ifdef read_implementation_uses}
 CastleInternalWindowModes, CastleMessages, CastleJoysticks, CastleUnicode,
+CastleInternalFileMonitor,
 {$endif}
 
 {$ifdef read_window_interface}
@@ -726,6 +727,8 @@ begin
     WM_ACTIVATEAPP:
       begin
         Application.appActive := longbool(wParm);
+        if Application.appActive then
+          FileMonitor.CheckChanges;
         {exit; <- allow DefWindowProcW handle WM_ACTIVETAPP too,
          since you can't say "we surely handled everything that should be done in
          reaction for this message"}
@@ -963,7 +966,7 @@ begin
           { A device has been sucessfully added to the system }
           DBT_DEVICEARRIVAL:
             begin
-              WriteLnLog('Received a WM_DEVICECHANGE event with DBT_DEVICEARRIVAL');
+              WriteLnLog('Event WM_DEVICECHANGE + DBT_DEVICEARRIVAL, possibly a joystick connected');
               //it might be a joystick, therefore
               Joysticks.InternalConnected;
             end;
