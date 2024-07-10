@@ -30,11 +30,32 @@
   The most important class here is @link(TCastleImage).
   It represents an image as a simple uncompressed array of pixels.
   Descendants of TCastleImage define what exactly is a "pixel".
-  We have 8-bit color images
-  (@link(TRGBAlphaImage), @link(TRGBImage),
-  @link(TGrayscaleAlphaImage) and @link(TGrayscaleImage)).
-  We also have an images with floating-point precision and range:
-  @link(TRGBFloatImage), @link(TGrayscaleFloatImage).
+
+  @unorderedList(
+    @item(We have 8-bit color images:
+      @orderedList(
+        @item(@link(TGrayscaleImage) - 1 channel,
+          can be interpreted as intensity or alpha channel depending on
+          @link(TGrayscaleImage.TreatAsAlpha).)
+
+        @item(@link(TGrayscaleAlphaImage) - 2 channels: intensity and alpha.)
+
+        @item(@link(TRGBImage) - 3 channels: red, green, blue.)
+
+        @item(@link(TRGBAlphaImage) - 4 channels: red, green, blue, alpha.)
+      )
+    )
+
+    @item(We also have an images with floating-point precision and range:
+      @orderedList(
+        @item(@link(TGrayscaleFloatImage) - 1 channel: intensity.)
+
+        @item(@link(TRGBFloatImage) - 3 channels: red, green, blue.)
+
+        @item(@link(TRGBAlphaFloatImage) - 4 channels: red, green, blue, alpha.)
+      )
+    )
+  )
 
   There is also a more abstract image class @link(TEncodedImage),
   representing either uncompressed image (@link(TCastleImage))
@@ -1641,7 +1662,9 @@ type
   end;
 
   {$define read_interface}
+  // TODO: Move all image classes to include files, follow naming like castleimages_class_grayscalefloat.inc
   {$I castleimages_grayscale_float.inc}
+  {$I castleimages_rgb_alpha_float.inc}
   {$undef read_interface}
 
 { RGBE <-> 3 Single color conversion --------------------------------- }
@@ -2101,6 +2124,7 @@ uses {$ifdef FPC} ExtInterpolation, FPCanvas, FPImgCanv, {$endif}
 {$I castleimages_composite.inc}
 {$I castleimages_assign.inc}
 {$I castleimages_grayscale_float.inc}
+{$I castleimages_rgb_alpha_float.inc}
 
 { Colors ------------------------------------------------------------------ }
 
@@ -4622,6 +4646,10 @@ function LoadEncodedImage(Stream: TStream; const StreamFormat: TImageFormat;
         ReplaceResult(TGrayscaleFloatImage)
       else
 
+      if ClassAllowed(TRGBAlphaFloatImage) then
+        ReplaceResult(TRGBAlphaFloatImage)
+      else
+
         raise EUnableToLoadImage.CreateFmt('LoadEncodedImage cannot satisfy the requested output format, we got %s, but we want %s. Use less restrictive AllowedImageClasses argument.', [
           Result.ClassName,
           LoadEncodedImageParams(AllowedImageClasses)
@@ -4795,57 +4823,12 @@ end;
 
 procedure SaveImage(const Img: TEncodedImage; const Format: TImageFormat; Stream: TStream); overload;
 var
-  ImgRGB: TRGBImage;
   Save: TImageSaveFunc;
 begin
   if Assigned(ImageFormatInfos[Format].Save) then
   begin
     Save := ImageFormatInfos[Format].Save;
-    case ImageFormatInfos[Format].SavedClasses of
-      scRGB:
-        begin
-          if Img is TRGBImage then
-            Save(Img, Stream) else
-          if Img is TRGBFloatImage then
-          begin
-            ImgRGB := TRGBImage.Create;
-            try
-              ImgRGB.Assign(TRGBFloatImage(Img));
-              SaveImage(ImgRGB, Format, Stream);
-            finally FreeAndNil(ImgRGB) end;
-          end else
-            raise EImageSaveError.CreateFmt('Saving image not possible: Cannot save image class %s to this format', [Img.ClassName]);
-        end;
-      scG_GA_RGB_RGBA, scG_GA_RGB_RGBA_GPUCompressed:
-        begin
-          if (Img is TRGBImage) or
-             (Img is TRGBAlphaImage) or
-             (Img is TGrayscaleImage) or
-             (Img is TGrayscaleAlphaImage) or
-             ( (Img is TGPUCompressedImage) and
-               (ImageFormatInfos[Format].SavedClasses = scG_GA_RGB_RGBA_GPUCompressed) ) then
-            Save(Img, Stream) else
-          if Img is TRGBFloatImage then
-          begin
-            ImgRGB := TRGBImage.Create;
-            try
-              ImgRGB.Assign(TRGBFloatImage(Img));
-              SaveImage(ImgRGB, Format, Stream);
-            finally FreeAndNil(ImgRGB) end;
-          end else
-            raise EImageSaveError.CreateFmt('Saving image not possible: Cannot save image class %s to this format', [Img.ClassName]);
-        end;
-      scRGB_RGBFloat:
-        begin
-          if (Img is TRGBImage) or
-             (Img is TRGBFloatImage) then
-            Save(Img, Stream) else
-            raise EImageSaveError.CreateFmt('Saving image not possible: Cannot save image class %s to this format', [Img.ClassName]);
-        end;
-      {$ifndef COMPILER_CASE_ANALYSIS}
-      else raise EInternalError.Create('SaveImage: SavedClasses?');
-      {$endif}
-    end;
+    Save(Img, Stream);
   end else
     raise EImageSaveError.CreateFmt('Saving image class %s not implemented', [Img.ClassName]);
 end;

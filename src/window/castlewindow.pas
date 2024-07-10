@@ -2299,9 +2299,9 @@ type
       VideoResizeHeight. Otherwise, next TryVideoChange and VideoChange will
       use default screen size.
       @groupBegin }
-    VideoResize : boolean;
+    VideoResize: Boolean;
     VideoResizeWidth,
-    VideoResizeheight : integer;
+    VideoResizeHeight: Integer;
     { @groupEnd }
 
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
@@ -2321,17 +2321,60 @@ type
       always ends with CastleUtils.NL. }
     function VideoSettingsDescribe: String;
 
-    { Change the screen size, color bits and such, following the directions
+    (*Change the screen size, color bits and such, following the directions
       you set in VideoColorBits, VideoResize,
       VideoResizeWidth / VideoResizeHeight, and VideoFrequency variables.
       Returns @true if success.
+
+      See example code
+      @code(examples/user_interface/screen_resolution_change) for a working
+      example.
+
+      Simple example usage:
+
+@longCode(#
+unit GameChangeVideoResolution;
+
+interface
+
+var
+  // TODO: Allow user to configure it somehow
+  UserWantsToChangeScreenResolution: Boolean = true;
+
+{ Change screen resolution, if desired by UserWantsToChangeScreenResolution. }
+procedure ChangeResolution;
+
+implementation
+
+uses CastleWindow, CastleLog, CastleConfig;
+
+procedure ChangeResolution;
+begin
+  if UserWantsToChangeScreenResolution then
+  begin
+    Application.VideoResize := true;
+    // TODO: Allow user to choose the desired resolution
+    Application.VideoResizeWidth := 1024;
+    Application.VideoResizeHeight := 768;
+    if not Application.TryVideoChange then
+      WritelnWarning('Cannot change screen resolution, continuing with current settings');
+  end;
+end;
+
+initialization
+  UserWantsToChangeScreenResolution := UserConfig.GetValue('video/change_resolution', false);
+  ChangeResolution;
+finalization
+  Application.VideoReset;
+end.
+#)
 
       TODO: Expose methods like EnumeratePossibleVideoConfigurations to predict
       what video settings are possible.
 
       TODO: Prefix "Video" for the family of these functions is not clear.
       Something like "Screen" would be better.
-    }
+    *)
     function TryVideoChange: boolean;
 
     { Change the screen size, color bits and such, following the directions
